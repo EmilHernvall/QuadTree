@@ -417,11 +417,23 @@ public class QuadTree<V>
         System.out.println("done in " + t + " ns");
     }
     
+    private static Integer linearSearch(Map<Rectangle, Integer> data, Point p)
+    {
+        for (Map.Entry<Rectangle, Integer> entry : data.entrySet()) {
+            Rectangle rect = entry.getKey();
+            if (rect.contains(p)) {
+                return entry.getValue();
+            }
+        }
+        
+        return null;
+    }
+    
     public static void main(String[] args)
     throws Exception
     {
-        int size = 250;
-        int points = 250;
+        int size = 0;
+        int points = 10000;
         QuadTree<Integer> tree = new QuadTree<Integer>(size);
         
         if (size == 0) {
@@ -434,8 +446,8 @@ public class QuadTree<V>
         for (int i = 0; i < points; i++) {
             int x1 = rand.nextInt(2*size) - size;
             int y1 = rand.nextInt(2*size) - size;
-            int w = Math.abs(rand.nextInt(size/4));
-            int h = Math.abs(rand.nextInt(size/4));
+            int w = Math.abs(rand.nextInt(size/1000));
+            int h = Math.abs(rand.nextInt(size/1000));
             
             Rectangle rect = new Rectangle(x1, y1, x1 + w, y1 - h);
             if (rect.getLeft() < -size || rect.getRight() > size ||
@@ -466,7 +478,7 @@ public class QuadTree<V>
             System.out.println("Some inserts failed.");
         }
         
-        float avgFindTime = 0.0f;
+        float avgFindTime = 0.0f, avgLinearSearchTime = 0.0f;
         for (Map.Entry<Rectangle, Integer> entry : values.entrySet()) {
             Rectangle rect = entry.getKey();
             int value = entry.getValue();
@@ -488,16 +500,31 @@ public class QuadTree<V>
             } else {
                 //System.out.println("Matched in " + t + " ns.");
                 avgFindTime += t;
+                
+                t = System.nanoTime();
+                value = linearSearch(values, p);
+                if (cmp != value) {
+                    System.out.println("Linear search result does not match find.");
+                }
+                t = System.nanoTime() - t;
+                
+                avgLinearSearchTime += t;
             }
         }
         
         avgFindTime /= values.size();
         System.out.println(String.format("Average find time: %.2f ns", avgFindTime));
         
+        avgLinearSearchTime /= values.size();
+        System.out.println(String.format("Average linear search time: %.2f ns", avgLinearSearchTime));
+        
         if (size < 1000) {
             System.out.println("Generating visualization.");
             QuadTreeVisualizer.drawQuadTree(tree, "tree.png");
         }
+        
+        System.out.println("total memory: " + Runtime.getRuntime().totalMemory()/1024/1024 + " mb");
+        System.out.println("free memory: " + Runtime.getRuntime().freeMemory()/1024/1024 + " mb");
         
         /*
         QuadTree<String> tree = new QuadTree<String>();
