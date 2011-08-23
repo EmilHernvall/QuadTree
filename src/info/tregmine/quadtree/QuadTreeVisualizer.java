@@ -1,4 +1,4 @@
-package quadtree;
+package info.tregmine.quadtree;
 
 import java.util.Set;
 import java.util.HashSet;
@@ -10,9 +10,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import javax.imageio.ImageIO;
 
-import static quadtree.QuadTree.Node;
-import static quadtree.QuadTree.Rectangle;
-import static quadtree.QuadTree.Point;
+import static info.tregmine.quadtree.QuadTree.Node;
 
 public class QuadTreeVisualizer
 {

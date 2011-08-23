@@ -1,4 +1,4 @@
-package quadtree;
+package info.tregmine.quadtree;
 
 import java.util.Random;
 import java.util.Map;
@@ -6,140 +6,6 @@ import java.util.HashMap;
 
 public class QuadTree<V>
 {
-    public static class IntersectionException extends Exception
-    {
-        public IntersectionException(String message)
-        {
-            super(message);
-        }
-        
-        public IntersectionException()
-        {
-            super();
-        }
-    }
-
-    public static class Point
-    {
-        public int x, y;
-        
-        public Point(int x, int y)
-        {
-            this.x = x;
-            this.y = y;
-        }
-        
-        @Override
-        public String toString()
-        {
-            return String.format("%d,%d", x, y);
-        }
-        
-        @Override
-        public boolean equals(Object obj)
-        {
-            if (!(obj instanceof Point)) {
-                return false;
-            }
-            
-            Point b = (Point)obj;
-            return b != null && b.x == x && b.y == y;
-        }
-        
-        @Override
-        public int hashCode()
-        {
-            int code = 17;
-            code = 31 * code + x;
-            code = 31 * code + y;
-            
-            return code;
-        }
-    }
-
-    public static class Rectangle
-    {
-        // top left, top right
-        Point tl, tr;
-        // bottom left, bottom right
-        Point bl, br;
-    
-        public Rectangle(int x1, int y1, int x2, int y2)
-        {
-            int tmp;
-            
-            // swap values so that we can guarantee the
-            // relative position of the points
-            if (x1 > x2) {
-                tmp = x2;
-                x2 = x1;
-                x1 = tmp;
-            }
-            
-            if (y1 < y2) {
-                tmp = y2;
-                y2 = y1;
-                y1 = tmp;
-            }
-        
-            this.tl = new Point(x1, y1);
-            this.tr = new Point(x2, y1);
-            this.bl = new Point(x1, y2);
-            this.br = new Point(x2, y2);
-        }
-        
-        public int getLeft() { return tl.x; }
-        public int getRight() { return tr.x; }
-        public int getTop() { return tl.y; }
-        public int getBottom() { return bl.y; }
-        
-        public boolean contains(Point p)
-        {
-            return (p.x >= tl.x && p.x <= br.x) &&
-                (p.y <= tl.y && p.y >= br.y);
-        }
-        
-        public boolean intersects(Rectangle rect)
-        {
-            return !(rect.getLeft() > getRight() ||
-                rect.getRight() < getLeft() ||
-                rect.getTop() < getBottom() ||
-                rect.getBottom() > getTop());
-        }
-        
-        public Point[] getPoints()
-        {
-            return new Point[] { tl, tr, bl, br };
-        }
-        
-        @Override
-        public String toString()
-        {
-            return String.format("(%s),(%s),(%s),(%s)", tl, tr, bl, br);
-        }
-        
-        @Override
-        public boolean equals(Object obj)
-        {
-            if (!(obj instanceof Rectangle)) {
-                return false;
-            }
-            
-            Rectangle b = (Rectangle)obj;
-            return tl.equals(b.tl) && br.equals(b.br);
-        }
-        
-        @Override
-        public int hashCode()
-        {
-            int code = 17;
-            code = 31 * code + tl.hashCode();
-            code = 31 * code + br.hashCode();
-            
-            return code;
-        }
-    }
-
     public static class Node<V>
     {
         Rectangle sectorRect;
@@ -398,23 +264,38 @@ public class QuadTree<V>
         root.assign(rect, value);
     }
     
-    public V find(Point point)
+    public V find(Point p)
     {
-        return root.find(point);
+        //return root.find(p);
+        
+        Node<V> current = root;
+        while (current.split) {
+            if (current.tl.contains(p)) {
+                current = current.tl;
+            } else if (current.tr.contains(p)) {
+                current = current.tr;
+            } else if (current.bl.contains(p)) {
+                current = current.bl;
+            } else if (current.br.contains(p)) {
+                current = current.br;
+            } else {
+                return null;
+            }
+        }
+        
+        for (Map.Entry<Rectangle, V> entry : current.values.entrySet()) {
+            Rectangle rect = entry.getKey();
+            if (rect.contains(p)) {
+                return entry.getValue();
+            }
+        }
+        
+        return null;
     }
     
     public void delete(Rectangle rect)
     {
         throw new UnsupportedOperationException();
-    }
-    
-    private static void timedFind(QuadTree<String> tree, Point p)
-    {
-        long t = System.nanoTime();
-        String v = tree.find(p);
-        t = System.nanoTime() - t;
-        System.out.println(v);
-        System.out.println("done in " + t + " ns");
     }
     
     private static Integer linearSearch(Map<Rectangle, Integer> data, Point p)
@@ -525,25 +406,5 @@ public class QuadTree<V>
         
         System.out.println("total memory: " + Runtime.getRuntime().totalMemory()/1024/1024 + " mb");
         System.out.println("free memory: " + Runtime.getRuntime().freeMemory()/1024/1024 + " mb");
-        
-        /*
-        QuadTree<String> tree = new QuadTree<String>();
-        
-        tree.insert(new Rectangle(-10, -20, 14, 14), "foo");
-        //tree.insert(new Rectangle(0, 0, 11, -11), "bar");
-        tree.insert(new Rectangle(20, 5, 90, -90), "baz");
-        tree.insert(new Rectangle(20, 10, 30, 20), "quux");
-        tree.insert(new Rectangle(-20, 22, 48, 48), "quuz");
-        
-        //QuadTreeVisualizer.drawQuadTree(tree, "tree.png");
-        
-        timedFind(tree, new Point(2, 2));
-        timedFind(tree, new Point(-2, -2));
-        timedFind(tree, new Point(25, 0));
-        timedFind(tree, new Point(49, -10));
-        timedFind(tree, new Point(30, 15));
-        timedFind(tree, new Point(30, -24));
-        timedFind(tree, new Point(30, 30));
-        timedFind(tree, new Point(18, 12));*/
     }
 }

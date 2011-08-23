@@ -1,4 +1,4 @@
-<project name="Sandbox" default="compile" basedir=".">
+<project name="QuadTree" default="compile" basedir=".">
 	
 	<property name="src" value="src" />
 	<property name="build" value="bin" />
@@ -32,7 +32,7 @@
 	</target>
     
 	<target name="run" depends="compile">
-		<java classname="quadtree.QuadTree" fork="yes">
+		<java classname="info.tregmine.quadtree.QuadTree" fork="yes">
 			<classpath>
 				<pathelement path="${build}"/>
 				<fileset dir="${lib}">
@@ -46,4 +46,10 @@
 		<delete dir="${build}"/>
 	</target>
 	
+	<target name="jar" depends="compile">
+
+		<jar destfile="quadtree.jar" 
+			 basedir="${build}" />
+	</target>
+    
 </project>
