@@ -67,7 +67,11 @@ public class QuadTreeVisualizer
         Graphics2D graphics = image.createGraphics();
         
         Rectangle rect = node.sectorRect;
-        graphics.setColor(new Color(0xFF-d*20,0xFF-d*20,0xFF-d*20));
+        if (node.color) {
+            graphics.setColor(new Color(0xFF-d*20,0xFF-d*20,0x00));
+        } else {
+            graphics.setColor(new Color(0xFF-d*20,0xFF-d*20,0xFF-d*20));
+        }
         graphics.fillRect(w/2 + s*rect.tl.x, h/2 - s*rect.tl.y,
             s*(rect.br.x - rect.tl.x), s*(rect.tl.y - rect.br.y));
         

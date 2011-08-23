@@ -1,7 +1,24 @@
 package quadtree;
 
+import java.util.Random;
+import java.util.Map;
+import java.util.HashMap;
+
 public class QuadTree<V>
 {
+    public static class IntersectionException extends Exception
+    {
+        public IntersectionException(String message)
+        {
+            super(message);
+        }
+        
+        public IntersectionException()
+        {
+            super();
+        }
+    }
+
     public static class Point
     {
         public int x, y;
@@ -51,6 +68,8 @@ public class QuadTree<V>
         {
             int tmp;
             
+            // swap values so that we can guarantee the
+            // relative position of the points
             if (x1 > x2) {
                 tmp = x2;
                 x2 = x1;
@@ -69,10 +88,23 @@ public class QuadTree<V>
             this.br = new Point(x2, y2);
         }
         
+        public int getLeft() { return tl.x; }
+        public int getRight() { return tr.x; }
+        public int getTop() { return tl.y; }
+        public int getBottom() { return bl.y; }
+        
         public boolean contains(Point p)
         {
             return (p.x >= tl.x && p.x <= br.x) &&
                 (p.y <= tl.y && p.y >= br.y);
+        }
+        
+        public boolean intersects(Rectangle rect)
+        {
+            return !(rect.getLeft() > getRight() ||
+                rect.getRight() < getLeft() ||
+                rect.getTop() < getBottom() ||
+                rect.getBottom() > getTop());
         }
         
         public Point[] getPoints()
@@ -114,9 +146,9 @@ public class QuadTree<V>
         
         // the sub rectangle that is associated
         // with the value. might span multiple sectors.
-        Rectangle valueRect;
         Point valuePoint;
-        V value;
+        Rectangle valueRect;
+        Map<Rectangle, V> values;
         
         // top left, top right
         Node<V> tl, tr;
@@ -124,14 +156,15 @@ public class QuadTree<V>
         Node<V> bl, br;
         
         boolean split;
+        boolean color = false;
         
         public Node(Rectangle rect)
         {
             this.sectorRect = rect;
             
-            this.valueRect = null;
             this.valuePoint = null;
-            this.value = null;
+            this.valueRect = null;
+            this.values = new HashMap<Rectangle, V>();
             
             this.tl = null;
             this.tr = null;
@@ -146,10 +179,22 @@ public class QuadTree<V>
             return sectorRect.contains(p);
         }
         
+        public boolean intersects(Rectangle rect)
+        {
+            return sectorRect.intersects(rect);
+        }
+        
         public V find(Point p)
         {
             if (!split) {
-                return value;
+                for (Map.Entry<Rectangle, V> entry : values.entrySet()) {
+                    Rectangle rect = entry.getKey();
+                    if (rect.contains(p)) {
+                        return entry.getValue();
+                    }
+                }
+                
+                return null;
             }
         
             if (tl.contains(p)) {
@@ -161,31 +206,32 @@ public class QuadTree<V>
             } else if (br.contains(p)) {
                 return br.find(p);
             } else {
-                throw new IllegalStateException("No matching subsector.");
+                return null;
             }
         }
         
         public void insert(Point p, Rectangle rect, V v, int depth)
+        throws IntersectionException
         {
             //System.out.println("inserting " + p + " in " + sectorRect + " at depth " + depth);
         
             // this node doesn't matche the point
             if (!sectorRect.contains(p)) {
-                System.out.println(sectorRect + " does not match " + p);
+                //System.out.println(sectorRect + " does not match " + p);
                 return;
             }
             
             // no value has been assigned to this
             // node, so we don't have to split it
-            if (this.value == null && !split) {
-                this.value = v;
-                this.valueRect = rect;
-                this.valuePoint = p;
+            if (this.valuePoint == null && !split) {
+                values.put(rect, v);
+                valueRect = rect;
+                valuePoint = p;
                 return;
             }
             
             if (p.equals(valuePoint)) {
-                throw new IllegalStateException("Specified point " + p + " is already in use.");
+                throw new IntersectionException("Specified point " + p + " is already in use.");
             }
 
             // initialize subsectors
@@ -218,19 +264,42 @@ public class QuadTree<V>
                 this.split = true;
 
                 // move current value to subsection
+                V value = values.get(valueRect);
                 if (tl.contains(valuePoint)) {
-                    tl.insert(this.valuePoint, this.valueRect, this.value, depth+1);
+                    tl.insert(this.valuePoint, this.valueRect, value, depth+1);
                 } else if (tr.contains(valuePoint)) {
-                    tr.insert(this.valuePoint, this.valueRect, this.value, depth+1);
+                    tr.insert(this.valuePoint, this.valueRect, value, depth+1);
                 } else if (bl.contains(valuePoint)) {
-                    bl.insert(this.valuePoint, this.valueRect, this.value, depth+1);
+                    bl.insert(this.valuePoint, this.valueRect, value, depth+1);
                 } else if (br.contains(valuePoint)) {
-                    br.insert(this.valuePoint, this.valueRect, this.value, depth+1);
+                    br.insert(this.valuePoint, this.valueRect, value, depth+1);
                 } else {
                     throw new IllegalStateException(this.valuePoint + " is not in " + tl.sectorRect + ";\n" + 
                         "or " + tr.sectorRect + ";\n" + 
                         "or " + bl.sectorRect + ";\n" + 
                         "or " + br.sectorRect);
+                }
+                
+                // transfer all rectangles that intersect this sector and
+                // their corresponding values to the new subsectors
+                for (Map.Entry<Rectangle, V> entry : values.entrySet()) {
+                    Rectangle candidate = entry.getKey();
+                    if (tl.intersects(candidate)) {
+                        tl.values.put(candidate, entry.getValue());
+                        tl.color = true;
+                    } 
+                    if (tr.intersects(candidate)) {
+                        tr.values.put(candidate, entry.getValue());
+                        tr.color = true;
+                    } 
+                    if (bl.intersects(candidate)) {
+                        bl.values.put(candidate, entry.getValue());
+                        bl.color = true;
+                    } 
+                    if (br.intersects(candidate)) {
+                        br.values.put(candidate, entry.getValue());
+                        br.color = true;
+                    }
                 }
             }
             
@@ -250,29 +319,83 @@ public class QuadTree<V>
                     "or " + br.sectorRect);
             }
             
-            this.value = null;
-            this.valueRect = null;
-            this.valuePoint = null;
+            values.clear();
+            valueRect = null;
+            valuePoint = null;
+        }
+        
+        public boolean findIntersections(Rectangle rect)
+        {
+            if (!split) {
+                for (Map.Entry<Rectangle, V> entry : values.entrySet()) {
+                    Rectangle candidate = entry.getKey();
+                    if (candidate.intersects(rect)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        
+            if (tl.intersects(rect) && tl.findIntersections(rect)) {
+                return true;
+            } else if (tr.intersects(rect) && tr.findIntersections(rect)) {
+                return true;
+            } else if (bl.intersects(rect) && bl.findIntersections(rect)) {
+                return true;
+            } else if (br.intersects(rect) && br.findIntersections(rect)) {
+                return true;
+            }
+            
+            return false;
+        }
+        
+        public void assign(Rectangle rect, V value)
+        {
+            if (!split) {
+                values.put(rect, value);
+                color = true;
+                return;
+            }
+        
+            if (tl.intersects(rect)) {
+                tl.assign(rect, value);
+            } 
+            if (tr.intersects(rect)) {
+                tr.assign(rect, value);
+            } 
+            if (bl.intersects(rect)) {
+                bl.assign(rect, value);
+            } 
+            if (br.intersects(rect)) {
+                br.assign(rect, value);
+            }
         }
     }
 
     Node<V> root;
     
-    public QuadTree()
+    public QuadTree(int size)
     {
-        //this.root = new Node<V>(new Rectangle(Integer.MIN_VALUE, Integer.MAX_VALUE, 
-        //    Integer.MAX_VALUE, Integer.MIN_VALUE));
-            
-        this.root = new Node<V>(new Rectangle(-100, 100, 
-            100, -100));
+        if (size == 0) {
+            this.root = new Node<V>(new Rectangle(Integer.MIN_VALUE, Integer.MAX_VALUE, 
+                Integer.MAX_VALUE, Integer.MIN_VALUE));
+        } else {
+            this.root = new Node<V>(new Rectangle(-size, size, size, -size));
+        }
     }
     
     public void insert(Rectangle rect, V value)
+    throws IntersectionException
     {
+        // look for an intersecting rectangle
+        if (root.findIntersections(rect)) {
+            throw new IntersectionException();
+        }
+    
         for (Point p : rect.getPoints()) {
             root.insert(p, rect, value, 0);
-            //System.out.println();
         }
+        root.assign(rect, value);
     }
     
     public V find(Point point)
@@ -282,30 +405,118 @@ public class QuadTree<V>
     
     public void delete(Rectangle rect)
     {
+        throw new UnsupportedOperationException();
+    }
+    
+    private static void timedFind(QuadTree<String> tree, Point p)
+    {
+        long t = System.nanoTime();
+        String v = tree.find(p);
+        t = System.nanoTime() - t;
+        System.out.println(v);
+        System.out.println("done in " + t + " ns");
     }
     
     public static void main(String[] args)
     throws Exception
     {
+        int size = 250;
+        int points = 250;
+        QuadTree<Integer> tree = new QuadTree<Integer>(size);
+        
+        if (size == 0) {
+            size = Integer.MAX_VALUE/2;
+        }
+        
+        Map<Rectangle, Integer> values = new HashMap<Rectangle, Integer>();
+        Random rand = new Random();
+        float avgInsertTime = 0.0f;
+        for (int i = 0; i < points; i++) {
+            int x1 = rand.nextInt(2*size) - size;
+            int y1 = rand.nextInt(2*size) - size;
+            int w = Math.abs(rand.nextInt(size/4));
+            int h = Math.abs(rand.nextInt(size/4));
+            
+            Rectangle rect = new Rectangle(x1, y1, x1 + w, y1 - h);
+            if (rect.getLeft() < -size || rect.getRight() > size ||
+                rect.getBottom() < -size || rect.getTop() > size) {
+            
+                i--;
+                continue;
+            }
+            
+            Integer value = rand.nextInt();
+            
+            try {
+                long t = System.nanoTime();
+                tree.insert(rect, value);
+                t = System.nanoTime() - t;
+                avgInsertTime += t;
+                values.put(rect, value);
+            } catch (IntersectionException e) {
+                //System.out.println("Discarding intersecting rectangle.");
+                i--;
+            }
+        }
+        
+        avgInsertTime /= points;
+        System.out.println(String.format("Average insert time: %.2f ns", avgInsertTime));
+        
+        if (points != values.size()) {
+            System.out.println("Some inserts failed.");
+        }
+        
+        float avgFindTime = 0.0f;
+        for (Map.Entry<Rectangle, Integer> entry : values.entrySet()) {
+            Rectangle rect = entry.getKey();
+            int value = entry.getValue();
+            
+            int w = Math.abs(rect.getRight() - rect.getLeft());
+            int h = Math.abs(rect.getTop() - rect.getBottom());
+            
+            int x = rect.getLeft() + rand.nextInt(w);
+            int y = rect.getBottom() + rand.nextInt(h);
+            
+            Point p = new Point(x, y);
+            
+            long t = System.nanoTime();
+            Integer cmp = tree.find(p);
+            t = System.nanoTime() - t;
+            
+            if (cmp == null || cmp != value) {
+                System.out.println("Missmatch for " + p + " that should match " + rect);
+            } else {
+                //System.out.println("Matched in " + t + " ns.");
+                avgFindTime += t;
+            }
+        }
+        
+        avgFindTime /= values.size();
+        System.out.println(String.format("Average find time: %.2f ns", avgFindTime));
+        
+        if (size < 1000) {
+            System.out.println("Generating visualization.");
+            QuadTreeVisualizer.drawQuadTree(tree, "tree.png");
+        }
+        
+        /*
         QuadTree<String> tree = new QuadTree<String>();
         
         tree.insert(new Rectangle(-10, -20, 14, 14), "foo");
-        //System.out.println();
         //tree.insert(new Rectangle(0, 0, 11, -11), "bar");
-        //System.out.println();
         tree.insert(new Rectangle(20, 5, 90, -90), "baz");
-        //System.out.println();
         tree.insert(new Rectangle(20, 10, 30, 20), "quux");
-        
         tree.insert(new Rectangle(-20, 22, 48, 48), "quuz");
         
-        QuadTreeVisualizer.drawQuadTree(tree, "tree.png");
+        //QuadTreeVisualizer.drawQuadTree(tree, "tree.png");
         
-        System.out.println(tree.find(new Point(2, 2)));
-        System.out.println();
-        System.out.println(tree.find(new Point(-2, -2)));
-        System.out.println();
-        System.out.println(tree.find(new Point(25, 0)));
-        System.out.println();
+        timedFind(tree, new Point(2, 2));
+        timedFind(tree, new Point(-2, -2));
+        timedFind(tree, new Point(25, 0));
+        timedFind(tree, new Point(49, -10));
+        timedFind(tree, new Point(30, 15));
+        timedFind(tree, new Point(30, -24));
+        timedFind(tree, new Point(30, 30));
+        timedFind(tree, new Point(18, 12));*/
     }
 }
