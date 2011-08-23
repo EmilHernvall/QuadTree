@@ -1,0 +1,49 @@
+<project name="Sandbox" default="compile" basedir=".">
+	
+	<property name="src" value="src" />
+	<property name="build" value="bin" />
+	<property name="lib" value="lib" />
+	<property name="build.compiler" value="modern" />
+	
+	<target name="init">
+		<tstamp />
+		<mkdir dir="${build}" />
+	</target>
+	
+	<target name="compile" depends="init">
+		
+		<javac 
+			srcdir="${src}" 
+			destdir="${build}"
+			debug="on"
+			debuglevel="lines,vars,source">
+			
+			<compilerarg value="-Xlint:unchecked"/>
+			
+			<classpath>
+				<pathelement path="${build}"/>
+				<fileset dir="${lib}">
+					<include name="**/*.jar"/>
+				</fileset>
+			</classpath>
+			
+		</javac>
+			
+	</target>
+    
+	<target name="run" depends="compile">
+		<java classname="quadtree.QuadTree" fork="yes">
+			<classpath>
+				<pathelement path="${build}"/>
+				<fileset dir="${lib}">
+					<include name="**/*.jar"/>
+				</fileset>
+			</classpath>
+		</java>
+	</target>
+	
+	<target name="clean" depends="init">
+		<delete dir="${build}"/>
+	</target>
+	
+</project>
