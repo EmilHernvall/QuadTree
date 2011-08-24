@@ -33,6 +33,7 @@
     
 	<target name="run" depends="compile">
 		<java classname="info.tregmine.quadtree.QuadTree" fork="yes">
+            <jvmarg value="-Xmx1024M" />
 			<classpath>
 				<pathelement path="${build}"/>
 				<fileset dir="${lib}">
