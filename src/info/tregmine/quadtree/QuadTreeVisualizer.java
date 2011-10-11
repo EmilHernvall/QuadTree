@@ -18,11 +18,11 @@ public class QuadTreeVisualizer
     throws IOException
     {
         Node<V> root = tree.root;
-        Rectangle rect = root.sectorRect;
+        Rectangle rect = root.nodeRect;
         
         int s = 5;
-        int w = s*(rect.tr.x - rect.tl.x);
-        int h = s*(rect.tl.y - rect.bl.y);
+        int w = s*(int)rect.getWidth();
+        int h = s*(int)rect.getHeight();
         
         BufferedImage image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         
@@ -39,8 +39,8 @@ public class QuadTreeVisualizer
         for (Rectangle valueRect : inserted) {
             //System.out.println(valueRect);
             graphics.setColor(Color.RED);
-            graphics.drawRect(w/2 + s*valueRect.tl.x, h/2 - s*valueRect.tl.y,
-                s*(valueRect.br.x - valueRect.tl.x), s*(valueRect.tl.y - valueRect.br.y));
+            graphics.drawRect(w/2 + s*valueRect.x1, h/2 - s*valueRect.y1,
+                s*(int)valueRect.getWidth(), s*(int)valueRect.getHeight());
                 
             /*graphics.drawString(valueRect.tl.toString(), 
                 w/2 + s*(valueRect.tl.x - 7), h/2 - s*(valueRect.tl.y - 1));
@@ -64,18 +64,18 @@ public class QuadTreeVisualizer
     
         Graphics2D graphics = image.createGraphics();
         
-        Rectangle rect = node.sectorRect;
+        Rectangle rect = node.nodeRect;
         if (node.color) {
             graphics.setColor(new Color(0xFF-d*20,0xFF-d*20,0x00));
         } else {
             graphics.setColor(new Color(0xFF-d*20,0xFF-d*20,0xFF-d*20));
         }
-        graphics.fillRect(w/2 + s*rect.tl.x, h/2 - s*rect.tl.y,
-            s*(rect.br.x - rect.tl.x), s*(rect.tl.y - rect.br.y));
+        graphics.fillRect(w/2 + s*rect.x1, h/2 - s*rect.y1,
+            s*(int)rect.getWidth(), s*(int)rect.getHeight());
         
         graphics.setColor(new Color(d*20,d*20,d*20));
-        graphics.drawRect(w/2 + s*rect.tl.x, h/2 - s*rect.tl.y,
-            s*(rect.br.x - rect.tl.x), s*(rect.tl.y - rect.br.y));
+        graphics.drawRect(w/2 + s*rect.x1, h/2 - s*rect.y1,
+            s*(int)rect.getWidth(), s*(int)rect.getHeight());
             
         Rectangle valueRect = node.valueRect;
         if (valueRect != null) {  
